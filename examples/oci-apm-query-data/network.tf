@@ -58,6 +58,34 @@ module "oci_network" {
 
 }
 
+resource "oci_core_security_list" "sec_list" {
+    compartment_id = var.compartment_ocid
+    display_name = "securityList_test"
+    vcn_id = module.oci_network.vcn.id
+    
+    egress_security_rules {
+        protocol = "6"
+        destination = "0.0.0.0/0"
+    }
+    
+    dynamic "ingress_security_rules" {
+    for_each = [80, 443]
+    content {
+        protocol = "6"
+        source = "0.0.0.0/0"
+        tcp_options {
+            max = ingress_security_rules.value
+            min = ingress_security_rules.value
+            }
+        }
+    }
+
+    ingress_security_rules {
+        protocol = "6"
+        source = "10.0.0.0/16"
+    }
+}
+
 module "oci_subnets" {
   source = "../../oci-core-modules/oci_subnets"
 
@@ -81,7 +109,7 @@ module "oci_subnets" {
       ad                = null
       dhcp_options_id   = null
       route_table_id    = module.oci_network.route_tables.igw.id
-      security_list_ids = null
+      security_list_ids = [oci_core_security_list.sec_list.id]
     }
   }
 }

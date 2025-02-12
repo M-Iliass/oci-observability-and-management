@@ -1,3 +1,4 @@
+import os
 import io
 import json
 import logging
@@ -6,26 +7,31 @@ import datetime
 
 from fdk.context import InvokeContext
 from fdk import response
+from urllib.parse import urlparse
+from urllib.parse import parse_qs
 
 def handler(ctx, data: io.BytesIO = None):
 
-    apm_traces_client = get_traces_client()
-    body = get_body(data=data)
+    parsed_url = urlparse(ctx.RequestURL())
 
     try:
-        query_response = apm_traces_client.query(apm_domain_id=body["apm_domain_id"],
-                                                query_details=oci.apm_traces.models.QueryDetails(query_text=body["query_text"]),
-                                                time_span_started_greater_than_or_equal_to=datetime.datetime.strptime(body["time_span_started_greater_than_or_equal_to"], "%Y-%m-%dT%H:%M:%S.%fZ"),
-                                                time_span_started_less_than=datetime.datetime.strptime(body["time_span_started_less_than"], "%Y-%m-%dT%H:%M:%S.%fZ"),
-                                                limit=900)
+        query_name = parse_qs(parsed_url.query)['query_result_name'][0]
     except (Exception, ValueError) as ex:
-        if "opc-request-id" not in str(ex):
-            logging.getLogger().info('Error querying data, possibly due to missing parameter in body: ' + str(ex))
-            return
-        
-        logging.getLogger().info('Error querying data: ' + str(ex))
-        return
-    
+        logging.getLogger().error("Error parsing 'query_result_name' param: " + str(ex))
+        raise ex
+
+    apm_domain_id = os.environ['apm_domain_id']
+    query_text = "fetch query result " + query_name
+
+    print()
+
+    apm_traces_client = get_traces_client()
+
+    query_response = apm_traces_client.query(apm_domain_id=apm_domain_id,
+                                            query_details=oci.apm_traces.models.QueryDetails(query_text=query_text),
+                                            time_span_started_greater_than_or_equal_to=datetime.datetime.fromtimestamp(0),
+                                            time_span_started_less_than=datetime.datetime.fromtimestamp(0),
+                                            limit=900)
     
     if is_timeseries_data(query_response.data):
         result = transform_time_series_data(query_response.data)
@@ -41,17 +47,6 @@ def handler(ctx, data: io.BytesIO = None):
         ctx, response_data=result,
         headers={"Content-Type": "application/json"}
     )
-
-
-def get_body(data: io.BytesIO):
-    try:
-        body = json.loads(data.getvalue())
-        if ("query_text" not in body) and ("query_result_name" in body):
-            body.update({"query_text": "fetch query result " + body["query_result_name"]})
-    except (Exception, ValueError) as ex:
-        logging.getLogger().info('error parsing json payload: ' + str(ex))
-    
-    return body
 
 def get_traces_client():
     # ### Use the below config to run locally using config file authentication
@@ -133,14 +128,9 @@ def transform_time_series_data(data):
     
     return result
 
-### Invoke this function using the code bellow, this should be the request body when ivoking the function
-# b = io.BytesIO(str.encode(json.dumps(
-#     {
-#         "apm_domain_id": "ocid1.apmdomain.oc1.iad.xxxxxxxxxxxxxxxxxxx",
-#         # "query_text": "", # You can use query_text to use the full query or just the query_result_name to get the result of a background query. When both are set, the query text will be used.
-#         # "query_result_name": "",
-#         "time_span_started_greater_than_or_equal_to": "2015-09-04T06:18:46.305Z",
-#         "time_span_started_less_than": "2033-08-18T22:58:41.091Z"
-#     })))
+### Invoke this function using the code bellow, set the query name and apm_domain_id and also make sure you use the correct code at the method 'get_traces_client'
+# query_name = ""
+# apm_domain_id = ""
 
-# handler(ctx = InvokeContext("app_id", "app_name", "fn_id", "fn_name", "call_id"), data=b)
+# os.environ["apm_domain_id"] = apm_domain_id
+# handler(ctx = InvokeContext("app_id", "app_name", "fn_id", "fn_name", "call_id", request_url="/query?query_result_name=" + query_name))

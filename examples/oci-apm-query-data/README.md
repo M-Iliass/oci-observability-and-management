@@ -1,8 +1,8 @@
 # OCI APM data querier function setup
 
-This is a OCI (Oracle Cloud Infrastructure) APM data querier function setup which at the end will create an OCI function that can be queried to get APM data in an easy to use format, the function code is also available if the default format does not fit your needs. 
+This is a OCI (Oracle Cloud Infrastructure) APM data querier function setup which at the end will create an OCI function wrapped within an API gateway that can then be queried to get APM data in an easy to use format, the function code is also available if the default format does not fit your needs. 
 
-This project aims to create all the necessary OCI resources (Compartment, User Groups, Users, VCN, Subnets etc..) required including creating the image, the OCI functions application and function and finally invoking it. And all of this is done using terraform.
+This project aims to create all the necessary OCI resources required including creating the image, the OCI functions application and function, the API Gateway and policies. And all of this is done using terraform.
 
 In this example we will be creating:
 
@@ -12,8 +12,9 @@ In this example we will be creating:
 * 1 x Internet Gateway for Public Subnet
 * 1 x OCI application
 * 1 x OCI function
+* 1 x API Gateway and deployment for the function
 * Create and push the function's image to the registry
-* Create Functions Policies. 
+* Create Functions and gateway Policies.
 
 ## Prerequisites
 
@@ -43,7 +44,7 @@ compartment_ocid = "ocid1.compartment.oc1..xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 region = "us-ashburn-1"
 current_user_ocid = "ocid1.user.oc1..xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 user_auth_token = "xxxxxxxxxxxxxxx" # Replace with your own auth token
-function_invoke_body = ""
+apm_domain_id = ""
 ```
 
 ## Deploying the function:
@@ -61,17 +62,7 @@ Apply the changes using the following commands:
 ```
 Outputs:
 
-function_response = "" # Should return query results as an array
+URL_to_call = "url/v1/query?query_result_name="
 ```
 
-Sometimes it can take a bit longer for the function to be ready, when that happens you can call the funtion in cloud shell using this line :
-
-    echo -n '{
-      "apm_domain_id":"ocid1.tenancy.oc1..xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-      "query_text":"",
-      "query_result_name":"",
-      "time_span_started_greater_than_or_equal_to":"2015-09-04T06:18:46.305Z",
-      "time_span_started_less_than":"2033-08-18T22:58:41.091Z"
-    }' | fn invoke apm-data-querier-app apm-data-querier
-
-note: To invoke the function, you can eiher specify the query text which is the full query, or just the query name of a backgroud query which will be used, if you specify both, the query text will be used.
+You can then call the link above while adding the background query name to the end, and that should return the query result in an easy to use format

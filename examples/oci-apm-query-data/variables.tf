@@ -8,4 +8,4 @@ variable "current_user_ocid" {}
 
 variable "user_auth_token" {}
 
-variable "function_invoke_body" {}
+variable "apm_domain_id" {}
