@@ -6,13 +6,14 @@ This project aims to create all the necessary OCI resources required including c
 
 In this example we will be creating:
 
-* 1 x Container registry to store the image
-* 1 x Virtual Cloud Network (VCN)
-* 1 x Subnet (Public)
-* 1 x Internet Gateway for Public Subnet
-* 1 x OCI application
-* 1 x OCI function
-* 1 x API Gateway and deployment for the function
+* 1 x Container registry to store the image (apm-data-querier-repository/apm-data-querier)
+* 1 x Virtual Cloud Network (VCN) (apm-data-querier-vcn)
+* 1 x Subnet (Public) (public)
+* 1 x Internet Gateway for Public Subnet (igw)
+* 1 x OCI application (apm-data-querier-app)
+* 1 x OCI function (apm-data-querier)
+* 1 x API Gateway (apm-data-querier-gateway)
+* 1 x API Gateway deployment for the function (apm-data-querier-gateway-deployment)
 * Create and push the function's image to the registry
 * Create Functions and gateway Policies.
 
