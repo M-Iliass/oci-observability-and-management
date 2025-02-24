@@ -5,25 +5,33 @@ import logging
 import oci
 import datetime
 
-from fdk.context import InvokeContext
 from fdk import response
 from urllib.parse import urlparse
 from urllib.parse import parse_qs
+from urllib.parse import unquote
 
 def handler(ctx, data: io.BytesIO = None):
 
     parsed_url = urlparse(ctx.RequestURL())
+    query_params = parse_qs(parsed_url.query)
 
-    try:
-        query_name = parse_qs(parsed_url.query)['query_result_name'][0]
-    except (Exception, ValueError) as ex:
-        logging.getLogger().error("Error parsing 'query_result_name' param: " + str(ex))
-        raise ex
+    if "query_result_name" in query_params:
+        query_name = query_params['query_result_name'][0]
+        query_text = "fetch query result " + query_name
+    elif "query_tql" in query_params:
+        query_text = unquote(query_params['query_tql'][0])
+    elif "configuration_name" in query_params:
+        configuration_name = query_params['configuration_name'][0]
+        if configuration_name in os.environ:
+            query_text = os.environ[configuration_name]
+        else:
+            logging.getLogger().error("Configuration param doesn't exist: " + configuration_name)
+            return response.Response(ctx, status_code=400, response_data="Incorrect configuration name")
+    else:
+        logging.getLogger().error("No valid parameters specified, you need to specify one of the following paramaters:\nquery_result_name, query_tql, configuration_name")
+        return response.Response(ctx, status_code=400, response_data="No valid parameters specified")
 
     apm_domain_id = os.environ['apm_domain_id']
-    query_text = "fetch query result " + query_name
-
-    print()
 
     apm_traces_client = get_traces_client()
 
@@ -39,9 +47,6 @@ def handler(ctx, data: io.BytesIO = None):
         result = transform_data(query_response.data)
     
     result = json.dumps(result, sort_keys=True, indent=2, separators=(',', ': '))
-    
-    print("Query results after transformation:")
-    print(result)
 
     return response.Response(
         ctx, response_data=result,
